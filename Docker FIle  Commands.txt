@@ -1,0 +1,444 @@
+To run a container from an image from Docker Hub:
+ 
+docker run --name mynginx1 -p 8888:80 -d nginx  
+
+docker run --name mynginx1 -P -d nginx
+
+Test it with:
+curl http://localhost:<port>
+
+docker exec -i -t mynginx1 sh
+
+	 
+Example docker file
+-------------------------------
+1) vim Dockerfile
+
+FROM ubuntu:latest
+MAINTAINER Prasanti
+RUN apt-get update
+RUN apt-get install -y vim
+CMD ["echo","HelloWorld"]
+
+3) docker build . -t myubuntuimage
+
+4) docker info
+
+5) docker run --name mycont myubuntuimage
+
+docker exec -i -t mycont /bin/sh
+
+
+6) From instruction:
+*********************************************
+*********************************************
+mkdir dockerfiles
+vim dockerfiles/df
+
+FROM ubuntu:latest
+MAINTAINER Prasanti
+RUN apt-get update
+RUN apt-get install -y iputils-ping
+CMD ["sleep", "3000"]
+
+docker build -f dockerfiles/df . -t prasantikadiyala/myubuntuimage1
+
+docker push prasantikadiyala/myubuntuimage1
+
+docker run --name cont -d prasantikadiyala/myubuntuimage1 
+
+docker exec -i -t cont /bin/sh
+
+7) ARG instruction:
+****************************************
+*********************************************
+
+i) using ARG before FROM
+---------------------------------
+
+vim dockerfiles/dockerfile
+
+ARG Version=latest
+FROM ubuntu:$Version
+MAINTAINER Prasanti
+RUN apt-get update
+RUN apt-get install -y iputils-ping
+
+docker build -f dockerfiles/dockerfile . -t myimage
+docker run -i -t --name my myimage /bin/bash
+
+ii) using ARG in the docker file
+-------------------------------------
+
+
+vim dockerfiles/dockerfile1
+
+ARG Version=latest
+FROM ubuntu:$Version
+ARG some_var=hi
+RUN mkdir /$some_var
+CMD echo hello
+CMD ["sleep" , "300"]
+
+docker build -f dockerfiles/dockerfile . -t myimage1
+docker run --name mycont1 -d myimage1 
+
+docker exec -i -t mycont1 /bin/sh
+
+iii) Using ARG in a run time instruction
+---------------------------------------------
+vim dockerfiles/dockerfile2
+
+ARG Version=latest
+FROM ubuntu:$Version
+ARG some_var=hi
+RUN mkdir /$some_var
+CMD echo $some_var
+
+docker build -f dockerfiles/dockerfile2 . -t myimage2
+docker run --name mycont2 -d myimage2
+
+
+8) ENV Instruction
+****************************************
+*********************************************
+Can also use alternative syntax:
+
+ENV sample hi
+
+
+i) vim dockerfiles/dockerfile7
+
+
+FROM ubuntu:latest
+ARG some_var=hi
+ENV sample=hello
+CMD echo $some_var
+CMD echo $sample
+CMD ["sleep", "100"]
+
+docker build -f dockerfiles/dockerfile7 . -t myimage7
+
+docker build -f dockerfile . -t myimage7
+docker run --name mycont7 -d myimage7 
+
+docker exec mycont7 env
+
+
+ii) can be passed in docker run command
+---------------------------------------------
+docker run -e "sample=hellodocker" --name mycont8 -d myimage7
+docker exec mycont8 env
+
+iii) Can be passed from env variables from the host system:
+------------------------------------------------------
+export sample=prasanti
+docker run -e sample --name mycont9 -d myimage7
+
+9) WORKDIR instruction
+****************************************
+*********************************************
+i) vim dockerfiles/dockerfile8
+
+FROM ubuntu:latest
+ENV sample=mydir
+WORKDIR /$sample
+RUN mkdir config
+
+
+docker build -f dockerfiles/dockerfile8 . -t myimage8
+docker run -i -t --name my8 myimage8 /bin/bash
+
+
+10) Copy instruction
+****************************************
+*********************************************
+cd dockerfiles
+
+mkdir html
+
+echo '<p>This is a sample page </p>' > html/sample.html 
+
+vim dockerfiles/dockerfile9
+
+FROM nginx:latest
+COPY dockerfiles/html /usr/share/nginx/html
+
+docker build -f dockerfiles/dockerfile9 . -t myimage9
+docker run --name mynginxcont -P -d myimage9
+
+curl http://localhost: /sample.html
+
+11) RUN instruction
+****************************************
+*********************************************
+vim dockerfiles/dockerfile12
+
+FROM ubuntu:latest
+RUN mkdir config
+RUN echo hello
+WORKDIR /sample
+RUN mkdir dir
+CMD ["sleep", "100"]
+
+docker build -f dockerfiles/dockerfile12 . -t myimage12
+
+docker run -i -t --name mycont12 myimage12 /bin/bash
+
+
+12) ENTRYPOINT instruction
+****************************************
+*********************************************
+vim dockerfiles/dockerfile14
+
+FROM ubuntu:latest
+RUN apt-get update && apt-get install -y iputils-ping
+ENTRYPOINT ping localhost
+
+docker build -f dockerfiles/dockerfile14 . -t myimage14 
+docker run  --name mycont14 -d myimage14 
+
+FROM ubuntu:latest
+RUN apt-get update
+RUN apt-get install -y iputils-ping
+ENTRYPOINT ["ping"]
+
+docker build -f dockerfiles/dockerfile14 . -t myimage14 
+docker run  --name mycont14 -d myimage14 localhost
+docker logs mycont14
+
+13) CMD Instruciton
+****************************************
+*********************************************
+
+Can have only one CMD instruction and if many are mentioned, last one will execute
+
+i) Interaction with ENtrypoint
+----------------------------------------
+vim dockerfiles/dockerfile16
+
+FROM ubuntu:latest
+RUN apt-get update
+RUN apt-get install -y iputils-ping
+ENTRYPOINT ["echo"] 
+CMD ["localhost"]
+
+
+docker build -f dockerfiles/dockerfile16 . -t myimage16
+docker run --name mycont16 -d myimage16
+
+ii) CMD alone - exec mode
+----------------------------------------
+vim dockerfiles/dockerfile17
+
+FROM ubuntu:latest
+RUN apt-get update
+RUN apt-get install -y iputils-ping
+CMD ["ping","localhost"]
+
+docker build -f dockerfiles/dockerfile17 . -t myimage17
+docker run --name mycont17 -d myimage17
+
+iii) CMD alone
+----------------------------------------
+vim dockerfiles/dockerfile17
+
+FROM ubuntu:latest
+RUN apt-get update
+RUN apt-get install -y iputils-ping
+CMD echo localhost
+
+docker build -f dockerfiles/dockerfile17 . -t myimage17
+docker run --name mycont17 myimage17
+
+
+Best Practices for DockerFile
+----------------------------------------------------------
+
+1) We can use inputfrom stdin as dockerfile without context when there are no files to be used
+
+
+docker build -t myimage:latest -<<EOF
+FROM busybox
+RUN echo "hello world"
+EOF
+
+2) We can use input from stdin as dockerfile with current folder as context
+
+docker build -t myimage:latest -f- . <<EOF
+FROM busybox
+COPY somefile.txt .
+RUN cat /somefile.txt
+EOF
+
+or 
+
+docker build -t myimage:latest -f- https://github.com/docker-library/hello-world.git <<EOF
+FROM busybox
+COPY hello.c .
+EOF
+
+
+3) Docker Ignore file to ignore all the unnecesary files from DOckerContext
+
+.dockerignore
+
+*.md
+README-secret.md
+!README*.md
+
+4) Combine multiple Run commands to reduce the layer
+
+FROM Ubuntu:latest
+RUN apt-get update 
+RUN apt-get install -y \
+  bzr \
+  cvs \
+  git \
+  mercurial \
+  subversion \
+  && rm -rf /var/lib/apt/lists/*
+
+
+
+FROM Ubuntu:latest
+RUN apt-get update && apt-get install -y \
+  bzr \
+  cvs \
+  git \
+  mercurial \
+  subversion \
+  && rm -rf /var/lib/apt/lists/*
+
+5) Can add Labels:
+
+FROM ubuntu:latest
+LABEL "com.example.vendor"="ACME Incorporated" 
+LABEL com.example.label-with-value="foo"
+LABEL version="1.0"
+LABEL description="This text illustrates \
+that label-values can span multiple lines."
+RUN apt-get update && apt-get install -y vim
+CMD ["echo","HelloWorld"]
+
+
+Interaction between CMD and ENTRYPOINT
+****************************************************
+Docker File commands 			           o/p command
+--------------------------------------------------------------------------------
+ 
+ENTRYPOINT ["/bin/ping","-c","3"] 
+CMD ["localhost"]                         /bin/ping -c 3 localhost
+
+
+
+Default shell will be Bash shell in Linux and CMD in Windows
+We can change the default shell by using the SHELL instruction:
+------------------------------------------------------------------
+
+FROM microsoft/windowsservercore
+
+# Executed as cmd /S /C echo default
+RUN echo default
+
+# Executed as cmd /S /C powershell -command Write-Host default
+RUN powershell -command Write-Host default
+
+# Executed as powershell -command Write-Host hello
+SHELL ["powershell", "-command"]
+RUN Write-Host hello
+
+# Executed as cmd /S /C echo hello
+SHELL ["cmd", "/S", "/C"]
+RUN echo hello
+
+Docker File Example:
+-------------------------------
+
+  FROM mcr.microsoft.com/dotnet/core/aspnet:3.1
+  COPY bin/Release/netcoreapp3.1/publish/ App/
+  WORKDIR /App
+  ENTRYPOINT ["dotnet", "aspnetapp.dll"]
+
+-------------------------------------------------------legal kafka services---------------------
+
+FROM containers.cisco.com/aws_managed/nodejs-8:latest
+FROM node:8
+
+USER root
+MAINTAINER skhussai
+
+#ADD files
+COPY . ${HOME}/repo/
+#MAKE root folder read and write
+# RUN chmod -R 777 ${APP_ROOT}/*
+WORKDIR ${HOME}/repo/
+#PORT
+EXPOSE 8080
+
+CMD ["node","app"]
+
+Go to pod's exec mode kubectl exec pod_name -- /bin/bash
+Go to cd /sys/fs/cgroup/cpu for cpu usage run cat cpuacct.usage
+Go to cd /sys/fs/cgroup/memory for memory usage run cat memory.usage_in_bytes
+Make Sure you have added the resources section (requests and limits) to deployment so that it can calculate the usage based on cgroup and container will respect the limits set on pod level
+
+There are three log files you can look at in the master node:
+
+/var/log/kube-apiserver.log– API Server, responsible for serving the API
+/var/log/kube-scheduler.log– Scheduler, responsible for making scheduling decisions
+/var/log/kube-controller-manager.log – Controller that manages replication controllers
+These are the two log files you can look at on worker nodes:
+
+/var/log/kubelet.log– Kubelet, responsible for running containers on the node
+/var/log/kube-proxy.log– Kube Proxy, responsible for service load balancing
+
+
+
+
+LIVING OUTSIDE MY HOMETWON FROM 01-AUG-2012 TO PRESENT DATE FOR EDUCATION AND HEALTH
+
+
+SERVING NOTICE PERIOD WHILE IN TCS WHILE FILLING THIS APPLICATION FORM
+
+
+
+
+
+
+for=10.31.36.169;host=legaldocusign.cloudapps.cisco.com;proto=https;proto-version=
+for=10.31.36.160;host=legaldocusign.cloudapps.cisco.com;proto=https;proto-version=
+
+
+
+MHBAN00484750000951337
+
+sonam agrawal 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
