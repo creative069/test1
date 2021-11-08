@@ -1,0 +1,85 @@
+1) tmpfs mounts
+----------------------------------------------------
+
+docker run -it --name tmptestcont --mount type=tmpfs,destination=/app,tmpfs-mode=770 -P nginx:latest /bin/bash
+
+docker run -it --name tmptestcont2 --mount type=tmpfs,destination=/app,tmpfs-size=1024 -P nginx:latest /bin/bash
+
+tmpfs-mode ---> File mode of the tmpfs in octal ex: 770 -- Full permissons
+Defaults to 1777 -- world readable
+
+tmpfs-size ---> Size of the tmpfs mount in bytes. Unlimited by default.
+
+docker container inspect tmptestcont
+
+docker container start tmptestcont 
+docker exec -it tmptestcont /bin/bash
+
+2) BindMounts
+--------------------------------------------------
+
+Doesn't create a non-existing folder:
+docker run --name devtest --mount type=bind,source="$(pwd)"/target,target=/usr, mode-readonly -P nginx:latest
+
+Creates a non-existing folder and mounts:
+docker run -it --name devtest -v "$(pwd)"/target:/usr -P nginx:latest /bin/bash
+
+echo "test content" > target/test.txt
+
+docker exec -it devtest /bin/bash
+
+Create another container with same bind mount:
+docker run -it --name devtest2 -v "$(pwd)"/target:/app -P nginx:latest /bin/bash
+
+
+To create a readonly bind mount:
+docker run -it --name devtest3 -v "$(pwd)"/target:/app:ro -P nginx:latest /bin/bash
+
+
+
+3) Volumes
+-----------------------------------------------------------
+
+docker volume create my-vol
+
+docker volume ls
+
+docker volume inspect my-vol
+
+start a container with volume which doesn't exit:
+docker run -it --name test1 --mount source=myvol2,target=/app -P nginx:latest /bin/bash
+
+docker run -it --name test2 --mount source=myvol2,target=/app -P nginx:latest /bin/bash
+
+create a continer with vol as readonly:
+docker run -it --name test3 --mount source=myvol2,target=/app,readonly -P nginx:latest /bin/bash
+
+populate a vol with container
+docker run -it --name test4 --mount source=myvol3,target=/usr/share/nginx/html -P nginx:latest /bin/bash
+
+docker volume inspect myvol3
+
+mounting volume from another contianer:
+docker run -it --name test5 --volumes-from test2 -P nginx /bin/bash
+
+
+
+docker run -it --name test4 --volumes-from test3 nginx /bin/bash
+
+Anonymous volumes:
+docker run -dit --name testubuntu1 --rm -v /foo -v awesome:/bar ubuntu 
+
+
+docker run -dit --name testubuntu3 --rm -v 23485ba646e8f1a1c7306ecc9a02ed89e022a32d8f657050f9a0fa0f76d2abac:/foo -v awesome:/bar ubuntu 
+
+
+docker exec -it testubuntu1 /bin/bash
+
+
+
+
+
+
+
+
+
